@@ -1,0 +1,85 @@
+{% set version = "1.14.0" %}
+
+package:
+  name: warp-lang
+  version: {{ version }}
+
+source:
+  url: https://github.com/NVIDIA/warp/archive/refs/tags/v{{ version }}.zip
+  sha256: e5525b124edbba969fac6ad9bf86742768e348feba2dd1a9e465068f6de14eea
+  patches:
+    - 01-respect_pm_python_ext.patch
+
+build:
+  number: 0
+  skip: true  # [py<310]
+  string: cpu_h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}                                                 # [cuda_compiler_version == "None"]
+  string: cuda{{ cuda_compiler_version | replace('.', '') }}_h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}  # [cuda_compiler_version != "None"]
+  track_features:
+    # CPU builds are deprioritized
+    - warp-lang-cpu                                 # [cuda_compiler_version == "None"]
+  ignore_run_exports_from:
+    - libnvjitlink-dev                              # [cuda_compiler_version != "None"]
+
+requirements:
+  build:
+    - {{ stdlib('c') }}
+    - {{ compiler('c') }}
+    - {{ compiler('cxx') }}
+    - {{ compiler('cuda') }}                         # [cuda_compiler_version != "None"]
+    - cmake
+    - ninja-base
+  host:
+    - cuda-version {{ cuda_compiler_version }}.*      # [cuda_compiler_version != "None"]
+    - cuda-cudart-dev                                 # [cuda_compiler_version != "None"]
+    - cuda-nvrtc-dev                                  # [cuda_compiler_version != "None"]
+    - libnvjitlink-dev {{ cuda_compiler_version }}.*  # [cuda_compiler_version != "None"]
+    - libnvptxcompiler-dev                            # [cuda_compiler_version != "None"]
+    - libmathdx-dev                                   # [cuda_compiler_version != "None"]
+    - gitpython
+    - numpy  {{ numpy }}
+    - setuptools >=75.3.2
+    - pip
+    - python
+    - wheel
+  run:
+    - __cuda                                                # [cuda_compiler_version != "None"]
+    - {{ pin_compatible('libnvjitlink', max_pin='x.x') }}   # [cuda_compiler_version != "None"]
+    - python
+
+test:
+  imports:
+    - warp
+  requires:
+    - pip
+    - pytest
+  commands:
+    - pip check
+    - python -m warp.tests -s autodetect -p "test_c*.py" -p "test_m*.py" -p "test_s*.py"
+    - python -c "import warp as wp; wp.init(); exit(not wp._src.context.runtime.core.wp_is_mathdx_enabled())"  # [linux and cuda_compiler_version != "None"]
+
+about:
+  home: https://github.com/NVIDIA/warp
+  summary: A Python framework for high-performance simulation and graphics programming.
+  license: Apache-2.0 AND MIT AND CC0-1.0 AND LicenseRef-NvidiaProprietary
+  license_family: Other
+  license_file:
+    - LICENSE.md
+    - licenses/appdirs-LICENSE.txt
+    - licenses/fp16-LICENSE.txt
+    - licenses/Gaia-LICENSE.txt
+    - licenses/llvm-LICENSE.txt
+    - licenses/moller-LICENSE.txt
+    - licenses/nanovdb-LICENSE.txt
+    - licenses/svd-LICENSE.txt
+    - licenses/unittest_parallel-LICENSE.txt
+    - licenses/usd-LICENSE.txt
+  doc_url: https://nvidia.github.io/warp/stable/
+  dev_url: https://github.com/NVIDIA/warp
+
+extra:
+  recipe-maintainers:
+    - flferretti
+    - traversaro
+    - shi-eric
+    - onurbingol
