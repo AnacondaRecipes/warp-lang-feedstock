@@ -13,8 +13,8 @@ source:
 build:
   number: 0
   skip: true  # [py<310]
-  string: cpu_h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}                                                 # [cuda_compiler_version == "None"]
-  string: cuda{{ cuda_compiler_version | replace('.', '') }}_h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}  # [cuda_compiler_version != "None"]
+  string: cpu_py{{ python | replace('.', '') }}h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}                                                # [cuda_compiler_version == "None"]
+  string: cuda{{ cuda_compiler_version | replace('.', '') }}_py{{ python | replace('.', '') }}h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}  # [cuda_compiler_version != "None"]
   track_features:
     # CPU builds are deprioritized
     - warp-lang-cpu                                 # [cuda_compiler_version == "None"]
