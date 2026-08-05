@@ -37,7 +37,7 @@ requirements:
     - libnvptxcompiler-dev  # [cuda_compiler_version != "None"]
     - libmathdx-dev  # [cuda_compiler_version != "None"]
     - gitpython
-    - numpy  {{ numpy }}
+    - numpy {{ numpy }}
     - setuptools >=75.3.2
     - pip
     - python
@@ -49,7 +49,9 @@ requirements:
     - python
     - numpy
   run_constrained:
-    - pytorch >=2.9.0
+    # Different pytorch constraints for different CUDA releases
+    - pytorch >=2.7.0  # [cuda_compiler_version.startswith("12")]
+    - pytorch >=2.9.0  # [cuda_compiler_version.startswith("13")]
 
 test:
   imports:
