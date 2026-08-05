@@ -7,8 +7,6 @@ package:
 source:
   url: https://github.com/NVIDIA/warp/archive/refs/tags/v{{ version }}.zip
   sha256: 9003931e634942f859db07af6f7bbb5c896acb875e7835d4b6f55330b7405613
-  patches:
-    - 01-respect_pm_python_ext.patch
 
 build:
   number: 0
