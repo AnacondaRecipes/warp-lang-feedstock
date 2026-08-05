@@ -1,4 +1,5 @@
-{% set version = "1.15.0" %}
+{% set version = "1.16.0" %}
+{% set cuda_major = (cuda_compiler_version | default("None")).split(".")[0] %}
 
 package:
   name: warp-lang
@@ -6,46 +7,50 @@ package:
 
 source:
   url: https://github.com/NVIDIA/warp/archive/refs/tags/v{{ version }}.zip
-  sha256: d6f9a2dc675391471edd31cea6d233bc9163b7e9454f7c0840800318983a19ac
-  patches:
-    - 01-respect_pm_python_ext.patch
+  sha256: 9003931e634942f859db07af6f7bbb5c896acb875e7835d4b6f55330b7405613
 
 build:
   number: 0
   skip: true  # [py<310]
-  string: cpu_py{{ python | replace('.', '') }}h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}                                                # [cuda_compiler_version == "None"]
+  string: cpu_py{{ python | replace('.', '') }}h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}  # [cuda_compiler_version == "None"]
   string: cuda{{ cuda_compiler_version | replace('.', '') }}_py{{ python | replace('.', '') }}h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}  # [cuda_compiler_version != "None"]
   track_features:
     # CPU builds are deprioritized
-    - warp-lang-cpu                                 # [cuda_compiler_version == "None"]
+    - warp-lang-cpu  # [cuda_compiler_version == "None"]
   ignore_run_exports_from:
-    - libnvjitlink-dev                              # [cuda_compiler_version != "None"]
+    - libnvjitlink-dev  # [cuda_compiler_version != "None"]
 
 requirements:
   build:
     - {{ stdlib('c') }}
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
-    - {{ compiler('cuda') }}                         # [cuda_compiler_version != "None"]
+    - {{ compiler('cuda') }}  # [cuda_compiler_version != "None"]
     - cmake
     - ninja-base
   host:
-    - cuda-version {{ cuda_compiler_version }}.*      # [cuda_compiler_version != "None"]
-    - cuda-cudart-dev                                 # [cuda_compiler_version != "None"]
-    - cuda-nvrtc-dev                                  # [cuda_compiler_version != "None"]
+    - cuda-version {{ cuda_compiler_version }}.*  # [cuda_compiler_version != "None"]
+    - cuda-cudart-dev  # [cuda_compiler_version != "None"]
+    - cuda-nvrtc-dev  # [cuda_compiler_version != "None"]
     - libnvjitlink-dev {{ cuda_compiler_version }}.*  # [cuda_compiler_version != "None"]
-    - libnvptxcompiler-dev                            # [cuda_compiler_version != "None"]
-    - libmathdx-dev                                   # [cuda_compiler_version != "None"]
+    - libnvptxcompiler-dev  # [cuda_compiler_version != "None"]
+    - libmathdx-dev  # [cuda_compiler_version != "None"]
     - gitpython
-    - numpy  {{ numpy }}
+    - numpy {{ numpy }}
     - setuptools >=75.3.2
     - pip
     - python
     - wheel
+    - python-build
   run:
-    - __cuda                                                # [cuda_compiler_version != "None"]
-    - {{ pin_compatible('libnvjitlink', max_pin='x.x') }}   # [cuda_compiler_version != "None"]
+    - __cuda  # [cuda_compiler_version != "None"]
+    - {{ pin_compatible('libnvjitlink', max_pin='x.x') }}  # [cuda_compiler_version != "None"]
     - python
+    - numpy
+  run_constrained:
+    # Different pytorch constraints for different CUDA releases
+    - pytorch >=2.7.0  # [cuda_major == "12"]
+    - pytorch >=2.9.0  # [cuda_major == "13"]
 
 test:
   imports:
