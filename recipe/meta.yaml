@@ -1,4 +1,5 @@
 {% set version = "1.16.0" %}
+{% set cuda_major = (cuda_compiler_version | default("None")).split(".")[0] %}
 
 package:
   name: warp-lang
@@ -48,8 +49,8 @@ requirements:
     - numpy
   run_constrained:
     # Different pytorch constraints for different CUDA releases
-    - pytorch >=2.7.0  # [cuda_compiler_version.startswith("12")]
-    - pytorch >=2.9.0  # [cuda_compiler_version.startswith("13")]
+    - pytorch >=2.7.0  # [cuda_major == "12"]
+    - pytorch >=2.9.0  # [cuda_major == "13"]
 
 test:
   imports:
