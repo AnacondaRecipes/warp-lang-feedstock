@@ -12,6 +12,9 @@ source:
 build:
   number: 0
   skip: true  # [py<310]
+  # Vendored LLVM on linux-aarch64 links mallinfo2 / __libc_single_threaded (glibc >= 2.33);
+  # the conda aarch64 sysroot is older, so warp-clang.so fails the undefined-symbol check.
+  skip: true  # [aarch64]
   string: cpu_py{{ python | replace('.', '') }}h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}  # [cuda_compiler_version == "None"]
   string: cuda{{ cuda_compiler_version | replace('.', '') }}_py{{ python | replace('.', '') }}h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}  # [cuda_compiler_version != "None"]
   track_features:
