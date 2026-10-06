@@ -1,4 +1,4 @@
-{% set version = "1.16.0" %}
+{% set version = "1.18.0" %}
 {% set cuda_major = (cuda_compiler_version | default("None")).split(".")[0] %}
 
 package:
@@ -7,7 +7,7 @@ package:
 
 source:
   url: https://github.com/NVIDIA/warp/archive/refs/tags/v{{ version }}.zip
-  sha256: 9003931e634942f859db07af6f7bbb5c896acb875e7835d4b6f55330b7405613
+  sha256: a0491eb50e620b721627fd1c50e89692af96be0fb34cf30737e6bfca5de924c6
 
 build:
   number: 0
