@@ -86,6 +86,9 @@ about:
   dev_url: https://github.com/NVIDIA/warp
 
 extra:
+  skip-lints:
+    # False positive: 'recipe/build.sh: The python install command used in the build script is deprecated.''
+    - deprecated_python_install_command
   recipe-maintainers:
     - flferretti
     - traversaro
