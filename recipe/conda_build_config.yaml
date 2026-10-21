@@ -2,3 +2,4 @@ cuda_compiler_version:
   - None
   - 12.9                # [linux or (win and x86_64)]
   - 13.0                # [linux or (win and x86_64)]
+  - 13.4                # [win and arm64]
