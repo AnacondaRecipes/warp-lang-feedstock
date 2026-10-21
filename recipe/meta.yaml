@@ -9,6 +9,8 @@ package:
 source:
   url: https://github.com/NVIDIA/warp/archive/refs/tags/v{{ version }}.zip
   sha256: {{ sha256 }}
+  patches:
+    - patches/0001-glibc-compat.patch
 
 build:
   number: 0
