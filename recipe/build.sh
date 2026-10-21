@@ -47,6 +47,16 @@ EOF
     export PATH="${PWD}/.warp-build-tools:${PATH}"
 fi
 
-${PYTHON} build_lib.py -j${CPU_COUNT} --use-dynamic-cuda
+# Use fewer parallel jobs on linux-aarch64 to avoid out-of-memory errors.
+if [[ "${target_platform}" == "linux-aarch64" ]]; then
+    BUILD_JOBS=$(( CPU_COUNT / 2 ))
+    if [[ "${BUILD_JOBS}" -lt 1 ]]; then
+        BUILD_JOBS=1
+    fi
+else
+    BUILD_JOBS="${CPU_COUNT}"
+fi
+
+${PYTHON} build_lib.py -j${BUILD_JOBS} --use-dynamic-cuda
 
 ${PYTHON} -m pip install . -vv --no-deps --no-build-isolation --no-cache-dir
