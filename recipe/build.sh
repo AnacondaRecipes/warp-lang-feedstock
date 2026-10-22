@@ -71,6 +71,11 @@ else
     WARP_ARGS=(--no-cuda)
 fi
 
+# Keep the packman cache inside the build tree, matching bld.bat. Otherwise packman uses
+# ~/.cache/packman (Linux) or ~/Library/Application Support/packman-cache (macOS),
+# which is shared with other builds by the same user and outlives this build.
+export PM_PACKAGES_ROOT="${SRC_DIR}/_build/packman-repo"
+
 ${PYTHON} build_lib.py -j${BUILD_JOBS} "${WARP_ARGS[@]}"
 
 ${PYTHON} -m pip install . -vv --no-deps --no-build-isolation --no-cache-dir

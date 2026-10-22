@@ -30,6 +30,12 @@ if "%target_platform%" == "win-arm64" (
 @REM Force packman to use system python
 set PM_PYTHON_EXT=%PYTHON%
 
+@REM Keep the packman cache inside the build tree. On Windows packman defaults to the
+@REM machine-wide C:\packman-repo, and _build\host-deps\llvm-project\release-* is a link
+@REM into it. If another CI user created that cache, this user cannot read it and
+@REM build_llvm.py fails with "[WinError 5] Access is denied" when listing the LLVM lib dir.
+set "PM_PACKAGES_ROOT=%SRC_DIR%\_build\packman-repo"
+
 %PYTHON% build_lib.py %ARGS% -j%CPU_COUNT%
 if errorlevel 1 exit 1
 
