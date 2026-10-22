@@ -21,6 +21,7 @@ build:
     # CPU builds are deprioritized
     - warp-lang-cpu  # [cuda_compiler_version == "None"]
   ignore_run_exports_from:
+    # libnvjitlink is pinned manually in `run` (see below) to the build's CUDA minor version
     - libnvjitlink-dev  # [cuda_compiler_version != "None"]
 
 requirements:
@@ -29,8 +30,6 @@ requirements:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
     - {{ compiler('cuda') }}  # [cuda_compiler_version != "None"]
-    - cmake
-    - ninja-base
   host:
     - cuda-version {{ cuda_compiler_version }}.*  # [cuda_compiler_version != "None"]
     - cuda-cudart-dev  # [cuda_compiler_version != "None"]
@@ -38,7 +37,7 @@ requirements:
     - libnvjitlink-dev {{ cuda_compiler_version }}.*  # [cuda_compiler_version != "None"]
     - libnvptxcompiler-dev  # [cuda_compiler_version != "None"]
     - libmathdx-dev  # [cuda_compiler_version != "None" and not (win and arm64)]
-    - gitpython
+    # build_lib.py imports warp._src.build_dll, which imports the `warp` package and thus numpy
     - numpy {{ numpy }}
     - setuptools >=75.3.2
     - pip
@@ -47,6 +46,9 @@ requirements:
     - python-build
   run:
     - __cuda  # [cuda_compiler_version != "None"]
+    # Pin nvJitLink to the CUDA minor version used for the build. A newer nvJitLink than the
+    # driver supports (e.g. 13.2 with a 13.0 driver) generates PTX the driver cannot load.
+    # Do not relax this pin. See: https://github.com/conda-forge/warp-lang-feedstock/issues/94
     - {{ pin_compatible('libnvjitlink', max_pin='x.x') }}  # [cuda_compiler_version != "None"]
     - python
     - numpy
@@ -64,7 +66,14 @@ test:
   commands:
     - pip check
     - python -m warp.tests -s autodetect -p "test_c*.py" -p "test_m*.py" -p "test_s*.py"
-    - python -c "import warp as wp; wp.init(); exit(not wp._src.context.runtime.core.wp_is_mathdx_enabled())"  # [linux and cuda_compiler_version != "None"]
+    # CPU variants must not contain CUDA support (guards against CUDA auto-detection at build time)
+    - python -c "import warp as wp; wp.init(); exit(wp._src.context.runtime.core.wp_is_cuda_enabled())"  # [cuda_compiler_version == "None"]
+    # CUDA variants must contain CUDA support
+    - python -c "import warp as wp; wp.init(); exit(not wp._src.context.runtime.core.wp_is_cuda_enabled())"  # [cuda_compiler_version != "None"]
+    # warp-clang (CPU JIT) must load
+    - python -c "import warp as wp; wp.init(); assert wp.is_cpu_available()"
+    # libmathdx is not available for win-arm64
+    - python -c "import warp as wp; wp.init(); exit(not wp._src.context.runtime.core.wp_is_mathdx_enabled())"  # [(linux or (win and x86_64)) and cuda_compiler_version != "None"]
 
 about:
   home: https://github.com/NVIDIA/warp
