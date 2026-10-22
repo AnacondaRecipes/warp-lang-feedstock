@@ -69,19 +69,43 @@ test:
 about:
   home: https://github.com/NVIDIA/warp
   summary: A Python framework for high-performance simulation and graphics programming.
-  license: Apache-2.0 AND MIT AND CC0-1.0 AND LicenseRef-NvidiaProprietary
+  license: Apache-2.0 AND Apache-2.0 WITH LLVM-exception AND MIT AND CC0-1.0 AND CC-BY-4.0 AND Pixar AND LicenseRef-NVIDIA-End-User-License-Agreement
   license_family: Other
+  # All files below are resolved from the upstream source tree (v{{ version }}).
   license_file:
+    # Warp itself (Apache-2.0)
     - LICENSE.md
+    # warp/_src/thirdparty/appdirs.py (MIT)
     - licenses/appdirs-LICENSE.txt
+    # pixel.jpg example asset by Alison Wawrzyniak (CC-BY-4.0, attribution required)
+    - licenses/asset_pixel_jpg-LICENSE.txt
+    # warp/native/cuBQL/ (Apache-2.0)
+    - licenses/cubql-LICENSE.txt
+    # NVIDIA CUDA EULA (LicenseRef-NVIDIA-End-User-License-Agreement, https://docs.nvidia.com/cuda/eula/index.html)
+    # libdevice.10.bc (shipped in all variants) and statically linked libnvptxcompiler
+    - licenses/cuda-LICENSE.txt
+    # warp/_src/thirdparty/dlpack.py (Apache-2.0)
+    - licenses/dlpack-LICENSE.txt
+    # fp16 conversion code (CC0-1.0)
     - licenses/fp16-LICENSE.txt
+    # Gaia code (Apache-2.0)
     - licenses/Gaia-LICENSE.txt
+    # LLVM/Clang statically linked into warp-clang (Apache-2.0 WITH LLVM-exception)
     - licenses/llvm-LICENSE.txt
+    # Triangle intersection code, warp/native/intersect_tri.h (MIT)
     - licenses/moller-LICENSE.txt
+    # warp/native/nanovdb/ headers (upstream file contains NVIDIA proprietary text; headers are Apache-2.0)
     - licenses/nanovdb-LICENSE.txt
+    # warp/native/deterministic.cu, Barnes/Ahrens/Demmel reproducible sums (MIT)
+    - licenses/reproducible_floating_sums-LICENSE.txt
+    # SVD code, warp/native/svd.h (MIT)
     - licenses/svd-LICENSE.txt
+    # warp/_src/thirdparty/unittest_parallel.py (MIT)
     - licenses/unittest_parallel-LICENSE.txt
+    # OpenUSD-derived 4x4 matrix code in warp/native/mat.h (Pixar, modified Apache-2.0, https://spdx.org/licenses/Pixar.html)
     - licenses/usd-LICENSE.txt
+    # SideFX winding number code, warp/native/solid_angle.h (MIT)
+    - licenses/windingnumber-LICENSE.txt
   doc_url: https://nvidia.github.io/warp/stable/
   dev_url: https://github.com/NVIDIA/warp
 
