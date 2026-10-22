@@ -20,6 +20,7 @@ set PM_PYTHON_EXT=%PYTHON%
 set
 
 %PYTHON% build_lib.py %ARGS% -j%CPU_COUNT% --use-dynamic-cuda
+if errorlevel 1 exit 1
 
 %PYTHON% -m pip install . -vv --no-deps --no-build-isolation --no-cache-dir
 if errorlevel 1 exit 1
