@@ -10,6 +10,14 @@ if "%CUDA_COMPILER_VERSION%" == "None" (
     @REM LIBRARY_PREFIX is the host prefix's Library directory.
     set "LIBMATHDX_HOME=%LIBRARY_PREFIX%"
     set "ARGS=--cuda-path=%LIBRARY_PREFIX% --use-dynamic-cuda"
+
+    @REM Include crt/ from BUILD_PREFIX, same as build.sh does with CPATH.
+    @REM CPATH is the GCC environment variable listing extra include directories, searched like -I.
+    @REM INCLUDE is the MSVC cl.exe equivalent, so it is the Windows counterpart of CPATH.
+    @REM The crt/ headers, such as crt/host_config.h included by cuda_runtime.h, come from
+    @REM cuda-crt-dev, a dependency of cuda-nvcc, so they are only in the build prefix.
+    @REM Append so host headers win.
+    set "INCLUDE=%INCLUDE%;%BUILD_PREFIX%\Library\include"
 )
 
 @REM libmathdx is not available for Windows on Arm
