@@ -19,33 +19,38 @@ if [[ "${cuda_compiler_version:-None}" != "None" ]]; then
     # headers and libraries at the top level of the selected prefix.
     export WARP_CUDA_PATH="${cuda_target_prefix}"
     export LIBMATHDX_HOME="${PREFIX}"
-    export LIBRARY_PATH="${PREFIX}/lib:${cuda_target_prefix}/lib${LIBRARY_PATH:+:${LIBRARY_PATH}}"
-    export NVCC_APPEND_FLAGS="${NVCC_APPEND_FLAGS:-} -I${cuda_target_include}/cccl -I${cuda_target_include}"
+
+    # cuda-nvcc activation already adds -I${cuda_target_include}; only the CCCL
+    # include directory (needed for CUDA 13) has to be appended.
+    export NVCC_APPEND_FLAGS="${NVCC_APPEND_FLAGS:-} -I${cuda_target_include}/cccl"
+
+    # Make sure nvvm tools are found by nvcc
+    export PATH="${PATH}:${BUILD_PREFIX}/nvvm/bin"
 fi
 
-# Make sure nvvm tools are found by nvcc
-export PATH="$PATH:$CONDA_PREFIX/nvvm/bin"
-
-# build_llvm.py overrides PM_PYTHON_EXT with sys.executable in the packman
-# subprocess env. During cross-compilation, sys.executable is the crossenv
-# wrapper that cannot import native modules like binascii. After patch 02
-# we only need to override it for cross-builds.
-if [[ "${build_platform:-}" != "${target_platform:-}" ]]; then
-    export PM_PYTHON_EXT="${BUILD_PREFIX}/bin/python${PY_VER}"
-fi
-
-# Warp invokes `strip` directly when producing warp.so. During cross-compilation that resolves
-# to the build-machine strip, which cannot process target binaries (e.g. aarch64 on x86_64).
-# Provide a shim so plain `strip` uses conda-build's target strip (`$STRIP`) instead.
-if [[ "${build_platform:-}" != "${target_platform:-}" && -n "${STRIP:-}" ]]; then
-    mkdir -p .warp-build-tools
-    cat > .warp-build-tools/strip <<EOF
-#!/bin/sh
-exec "${STRIP}" "\$@"
-EOF
-    chmod +x .warp-build-tools/strip
-    export PATH="${PWD}/.warp-build-tools:${PATH}"
-fi
+# Anaconda: No cross-builds. The cross-build workarounds below are disabled; they
+# are only needed when build_platform != target_platform.
+#
+# # build_llvm.py overrides PM_PYTHON_EXT with sys.executable in the packman
+# # subprocess env. During cross-compilation, sys.executable is the crossenv
+# # wrapper that cannot import native modules like binascii. Override it for
+# # cross-builds only.
+# if [[ "${build_platform:-}" != "${target_platform:-}" ]]; then
+#     export PM_PYTHON_EXT="${BUILD_PREFIX}/bin/python${PY_VER}"
+# fi
+#
+# # Warp invokes `strip` directly when producing warp.so. During cross-compilation that resolves
+# # to the build-machine strip, which cannot process target binaries (e.g. aarch64 on x86_64).
+# # Provide a shim so plain `strip` uses conda-build's target strip (`$STRIP`) instead.
+# if [[ "${build_platform:-}" != "${target_platform:-}" && -n "${STRIP:-}" ]]; then
+#     mkdir -p .warp-build-tools
+#     cat > .warp-build-tools/strip <<EOF
+# #!/bin/sh
+# exec "${STRIP}" "\$@"
+# EOF
+#     chmod +x .warp-build-tools/strip
+#     export PATH="${PWD}/.warp-build-tools:${PATH}"
+# fi
 
 # Use fewer parallel jobs on linux-aarch64 to avoid out-of-memory errors.
 if [[ "${target_platform}" == "linux-aarch64" ]]; then
@@ -57,6 +62,15 @@ else
     BUILD_JOBS="${CPU_COUNT}"
 fi
 
-${PYTHON} build_lib.py -j${BUILD_JOBS} --use-dynamic-cuda
+# CPU variants must not pick up a system CUDA install via build_lib.py's
+# auto-detection, so pass --no-cuda explicitly. --use-dynamic-cuda is an error
+# in combination with --no-cuda.
+if [[ "${cuda_compiler_version:-None}" != "None" ]]; then
+    WARP_ARGS=(--use-dynamic-cuda)
+else
+    WARP_ARGS=(--no-cuda)
+fi
+
+${PYTHON} build_lib.py -j${BUILD_JOBS} "${WARP_ARGS[@]}"
 
 ${PYTHON} -m pip install . -vv --no-deps --no-build-isolation --no-cache-dir
