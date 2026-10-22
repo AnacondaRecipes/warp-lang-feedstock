@@ -1,6 +1,5 @@
 {% set version = "1.18.0" %}
 {% set sha256 = "a0491eb50e620b721627fd1c50e89692af96be0fb34cf30737e6bfca5de924c6" %}
-{% set cuda_major = (cuda_compiler_version | default("None")).split(".")[0] %}
 
 package:
   name: warp-lang
@@ -10,7 +9,11 @@ source:
   url: https://github.com/NVIDIA/warp/archive/refs/tags/v{{ version }}.zip
   sha256: {{ sha256 }}
   patches:
+    # Drop when the bundled LLVM no longer references glibc >=2.32/2.33 symbols.
+    # Also, drop when LLVM is unvendored or default glibc is updated to >=2.32/2.33.
     - patches/0001-glibc-compat.patch
+    # Drop when upstream provides a proper solution for dynamically linking libstdc++ and libgcc.
+    - patches/0002-link-libstdcxx-libgcc-dynamically.patch  # [linux]
 
 build:
   number: 0
@@ -35,6 +38,7 @@ requirements:
     - cuda-cudart-dev  # [cuda_compiler_version != "None"]
     - cuda-nvrtc-dev  # [cuda_compiler_version != "None"]
     - libnvjitlink-dev {{ cuda_compiler_version }}.*  # [cuda_compiler_version != "None"]
+    # Static-only (no shared lib) and built with /MT, so Windows must keep the static MSVC CRT
     - libnvptxcompiler-dev  # [cuda_compiler_version != "None"]
     - libmathdx-dev  # [cuda_compiler_version != "None" and not (win and arm64)]
     # build_lib.py imports warp._src.build_dll, which imports the `warp` package and thus numpy
@@ -54,8 +58,18 @@ requirements:
     - numpy
   run_constrained:
     # Different pytorch constraints for different CUDA releases
-    - pytorch >=2.7.0  # [cuda_major == "12"]
-    - pytorch >=2.9.0  # [cuda_major == "13"]
+    - pytorch >=2.7.0  # [cuda_compiler_version.startswith("12")]
+    - pytorch >=2.9.0  # [cuda_compiler_version.startswith("13")]
+    # Optional dependencies of the examples (upstream `examples` extra).
+    # Examples are bundled with the package under 'warp/examples' directory and unit tests import 'warp.examples'.
+    - python-blosc >=1.11.1
+    - matplotlib-base >=3.7.5
+    - nlopt
+    - pillow >=10.4.0
+    - psutil >=7.1.0
+    - pyglet >=2.1.9
+    # Anaconda: we don't have 'openusd' on main. Check again after releasing 'openusd'.
+    - openusd >=25.5
 
 test:
   imports:
@@ -78,6 +92,14 @@ test:
 about:
   home: https://github.com/NVIDIA/warp
   summary: A Python framework for high-performance simulation and graphics programming.
+  description: |
+    Warp is a Python framework for GPU-accelerated simulation, robotics, and machine learning.
+    Warp takes regular Python functions and JIT compiles them to efficient kernel code that can
+    run on the CPU or GPU.
+
+    Warp comes with a rich set of primitives for physics simulation, robotics, geometry
+    processing, and more. Warp kernels are differentiable and can be used as part of
+    machine-learning pipelines with frameworks such as PyTorch, JAX and Paddle.
   license: Apache-2.0 AND Apache-2.0 WITH LLVM-exception AND MIT AND CC0-1.0 AND CC-BY-4.0 AND Pixar AND LicenseRef-NVIDIA-End-User-License-Agreement
   license_family: Other
   # All files below are resolved from the upstream source tree (v{{ version }}).
