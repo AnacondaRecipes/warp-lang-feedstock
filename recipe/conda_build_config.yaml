@@ -1,4 +1,7 @@
+# Upstream mentions that they have started to use CUDA Toolkit 13.4 as of warp-lang v1.18.0 release.
+# Upstream also mentions CUDA 12 compatibility releases, so keep building against CUDA Toolkit 12.9.x version.
+# Ref: https://github.com/NVIDIA/warp/releases/tag/v1.18.0
 cuda_compiler_version:
   - None
   - 12.9                # [linux or (win and x86_64)]
-  - 13.0                # [linux or (win and x86_64)]
+  - 13.4                # [linux or win]

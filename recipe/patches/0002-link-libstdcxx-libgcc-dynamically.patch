@@ -1,0 +1,25 @@
+From: Onur R. Bingol <obingol@anaconda.com>
+Subject: [PATCH] Link libstdc++ and libgcc dynamically on Linux
+
+Upstream passes -static-libstdc++ -static-libgcc so that its manylinux wheels
+do not depend on the host's C++ runtime. On conda-forge the runtime is provided
+by the libstdcxx and libgcc packages, so link against them dynamically and let
+them be shared across the environment. The version script that restricts the
+exported symbols to wp_* is kept.
+---
+--- a/warp/_src/build_dll.py
++++ b/warp/_src/build_dll.py
+@@ -953,9 +953,10 @@
+             # C++ hosts even on distros that flip the default to -z now via RELRO.
+             opt_undefined = "-Wl,-z,lazy"
+             opt_exclude_libs = "-Wl,--exclude-libs,ALL"
+-            opt_static_runtime = (
+-                f"-static-libstdc++ -static-libgcc -Wl,--version-script={quote(native_dir + '/warp.map')}"
+-            )
++            # Anaconda: link libstdc++ and libgcc_s dynamically so they are shared with the
++            # `libstdcxx` and `libgcc` runtime dependencies instead of being embedded.
++            # Keep the version script, which limits the exported symbols to `wp_*`.
++            opt_static_runtime = f"-Wl,--version-script={quote(native_dir + '/warp.map')}"
+
+         sanitize_ld = f" -fsanitize={args.sanitize}" if args.sanitize else ""
+

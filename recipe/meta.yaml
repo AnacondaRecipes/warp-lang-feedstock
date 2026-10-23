@@ -1,5 +1,5 @@
-{% set version = "1.16.0" %}
-{% set cuda_major = (cuda_compiler_version | default("None")).split(".")[0] %}
+{% set version = "1.18.0" %}
+{% set sha256 = "a0491eb50e620b721627fd1c50e89692af96be0fb34cf30737e6bfca5de924c6" %}
 
 package:
   name: warp-lang
@@ -7,7 +7,13 @@ package:
 
 source:
   url: https://github.com/NVIDIA/warp/archive/refs/tags/v{{ version }}.zip
-  sha256: 9003931e634942f859db07af6f7bbb5c896acb875e7835d4b6f55330b7405613
+  sha256: {{ sha256 }}
+  patches:
+    # Drop when the bundled LLVM no longer references glibc >=2.32/2.33 symbols.
+    # Also, drop when LLVM is unvendored or default glibc is updated to >=2.32/2.33.
+    - patches/0001-glibc-compat.patch
+    # Drop when upstream provides a proper solution for dynamically linking libstdc++ and libgcc.
+    - patches/0002-link-libstdcxx-libgcc-dynamically.patch  # [linux]
 
 build:
   number: 0
@@ -18,6 +24,7 @@ build:
     # CPU builds are deprioritized
     - warp-lang-cpu  # [cuda_compiler_version == "None"]
   ignore_run_exports_from:
+    # libnvjitlink is pinned manually in `run` (see below) to the build's CUDA minor version
     - libnvjitlink-dev  # [cuda_compiler_version != "None"]
 
 requirements:
@@ -26,16 +33,15 @@ requirements:
     - {{ compiler('c') }}
     - {{ compiler('cxx') }}
     - {{ compiler('cuda') }}  # [cuda_compiler_version != "None"]
-    - cmake
-    - ninja-base
   host:
     - cuda-version {{ cuda_compiler_version }}.*  # [cuda_compiler_version != "None"]
     - cuda-cudart-dev  # [cuda_compiler_version != "None"]
     - cuda-nvrtc-dev  # [cuda_compiler_version != "None"]
     - libnvjitlink-dev {{ cuda_compiler_version }}.*  # [cuda_compiler_version != "None"]
+    # Static-only (no shared lib) and built with /MT, so Windows must keep the static MSVC CRT
     - libnvptxcompiler-dev  # [cuda_compiler_version != "None"]
-    - libmathdx-dev  # [cuda_compiler_version != "None"]
-    - gitpython
+    - libmathdx-dev  # [cuda_compiler_version != "None" and not (win and arm64)]
+    # build_lib.py imports warp._src.build_dll, which imports the `warp` package and thus numpy
     - numpy {{ numpy }}
     - setuptools >=75.3.2
     - pip
@@ -44,13 +50,26 @@ requirements:
     - python-build
   run:
     - __cuda  # [cuda_compiler_version != "None"]
+    # Pin nvJitLink to the CUDA minor version used for the build. A newer nvJitLink than the
+    # driver supports (e.g. 13.2 with a 13.0 driver) generates PTX the driver cannot load.
+    # Do not relax this pin. See: https://github.com/conda-forge/warp-lang-feedstock/issues/94
     - {{ pin_compatible('libnvjitlink', max_pin='x.x') }}  # [cuda_compiler_version != "None"]
     - python
     - numpy
   run_constrained:
     # Different pytorch constraints for different CUDA releases
-    - pytorch >=2.7.0  # [cuda_major == "12"]
-    - pytorch >=2.9.0  # [cuda_major == "13"]
+    - pytorch >=2.7.0  # [cuda_compiler_version.startswith("12")]
+    - pytorch >=2.9.0  # [cuda_compiler_version.startswith("13")]
+    # Optional dependencies of the examples (upstream `examples` extra).
+    # Examples are bundled with the package under 'warp/examples' directory and unit tests import 'warp.examples'.
+    - python-blosc >=1.11.1
+    - matplotlib-base >=3.7.5
+    - nlopt
+    - pillow >=10.4.0
+    - psutil >=7.1.0
+    - pyglet >=2.1.9
+    # Anaconda: we don't have 'openusd' on main. Check again after releasing 'openusd'.
+    - openusd >=25.5
 
 test:
   imports:
@@ -61,28 +80,70 @@ test:
   commands:
     - pip check
     - python -m warp.tests -s autodetect -p "test_c*.py" -p "test_m*.py" -p "test_s*.py"
-    - python -c "import warp as wp; wp.init(); exit(not wp._src.context.runtime.core.wp_is_mathdx_enabled())"  # [linux and cuda_compiler_version != "None"]
+    # CPU variants must not contain CUDA support (guards against CUDA auto-detection at build time)
+    - python -c "import warp as wp; wp.init(); exit(wp._src.context.runtime.core.wp_is_cuda_enabled())"  # [cuda_compiler_version == "None"]
+    # CUDA variants must contain CUDA support
+    - python -c "import warp as wp; wp.init(); exit(not wp._src.context.runtime.core.wp_is_cuda_enabled())"  # [cuda_compiler_version != "None"]
+    # warp-clang (CPU JIT) must load
+    - python -c "import warp as wp; wp.init(); assert wp.is_cpu_available()"
+    # libmathdx is not available for win-arm64
+    - python -c "import warp as wp; wp.init(); exit(not wp._src.context.runtime.core.wp_is_mathdx_enabled())"  # [(linux or (win and x86_64)) and cuda_compiler_version != "None"]
 
 about:
   home: https://github.com/NVIDIA/warp
   summary: A Python framework for high-performance simulation and graphics programming.
-  license: Apache-2.0 AND MIT AND CC0-1.0 AND LicenseRef-NvidiaProprietary
+  description: |
+    Warp is a Python framework for GPU-accelerated simulation, robotics, and machine learning.
+    Warp takes regular Python functions and JIT compiles them to efficient kernel code that can
+    run on the CPU or GPU.
+
+    Warp comes with a rich set of primitives for physics simulation, robotics, geometry
+    processing, and more. Warp kernels are differentiable and can be used as part of
+    machine-learning pipelines with frameworks such as PyTorch, JAX and Paddle.
+  license: Apache-2.0 AND Apache-2.0 WITH LLVM-exception AND MIT AND CC0-1.0 AND CC-BY-4.0 AND Pixar AND LicenseRef-NVIDIA-End-User-License-Agreement
   license_family: Other
+  # All files below are resolved from the upstream source tree (v{{ version }}).
   license_file:
+    # Warp itself (Apache-2.0)
     - LICENSE.md
+    # warp/_src/thirdparty/appdirs.py (MIT)
     - licenses/appdirs-LICENSE.txt
+    # pixel.jpg example asset by Alison Wawrzyniak (CC-BY-4.0, attribution required)
+    - licenses/asset_pixel_jpg-LICENSE.txt
+    # warp/native/cuBQL/ (Apache-2.0)
+    - licenses/cubql-LICENSE.txt
+    # NVIDIA CUDA EULA (LicenseRef-NVIDIA-End-User-License-Agreement, https://docs.nvidia.com/cuda/eula/index.html)
+    # libdevice.10.bc (shipped in all variants) and statically linked libnvptxcompiler
+    - licenses/cuda-LICENSE.txt
+    # warp/_src/thirdparty/dlpack.py (Apache-2.0)
+    - licenses/dlpack-LICENSE.txt
+    # fp16 conversion code (CC0-1.0)
     - licenses/fp16-LICENSE.txt
+    # Gaia code (Apache-2.0)
     - licenses/Gaia-LICENSE.txt
+    # LLVM/Clang statically linked into warp-clang (Apache-2.0 WITH LLVM-exception)
     - licenses/llvm-LICENSE.txt
+    # Triangle intersection code, warp/native/intersect_tri.h (MIT)
     - licenses/moller-LICENSE.txt
+    # warp/native/nanovdb/ headers (upstream file contains NVIDIA proprietary text; headers are Apache-2.0)
     - licenses/nanovdb-LICENSE.txt
+    # warp/native/deterministic.cu, Barnes/Ahrens/Demmel reproducible sums (MIT)
+    - licenses/reproducible_floating_sums-LICENSE.txt
+    # SVD code, warp/native/svd.h (MIT)
     - licenses/svd-LICENSE.txt
+    # warp/_src/thirdparty/unittest_parallel.py (MIT)
     - licenses/unittest_parallel-LICENSE.txt
+    # OpenUSD-derived 4x4 matrix code in warp/native/mat.h (Pixar, modified Apache-2.0, https://spdx.org/licenses/Pixar.html)
     - licenses/usd-LICENSE.txt
+    # SideFX winding number code, warp/native/solid_angle.h (MIT)
+    - licenses/windingnumber-LICENSE.txt
   doc_url: https://nvidia.github.io/warp/stable/
   dev_url: https://github.com/NVIDIA/warp
 
 extra:
+  skip-lints:
+    # False positive: 'recipe/build.sh: The python install command used in the build script is deprecated.''
+    - deprecated_python_install_command
   recipe-maintainers:
     - flferretti
     - traversaro
