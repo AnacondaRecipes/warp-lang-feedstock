@@ -14,6 +14,11 @@ source:
     - patches/0001-glibc-compat.patch
     # Drop when upstream provides a proper solution for dynamically linking libstdc++ and libgcc.
     - patches/0002-link-libstdcxx-libgcc-dynamically.patch  # [linux]
+    # Tests only: 1.19.0 sparse capture tests allocate inside CUDA graph capture but are
+    # registered on all devices, so they fail instead of skipping where memory pools are
+    # unsupported (e.g. native Windows TCC devices). Gate them on capture allocation support.
+    # Drop when fixed upstream.
+    - patches/0003-gate-sparse-capture-tests-on-allocation-support.patch
 
 build:
   number: 0
