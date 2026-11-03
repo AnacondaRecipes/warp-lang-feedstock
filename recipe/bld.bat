@@ -21,7 +21,7 @@ if "%CUDA_COMPILER_VERSION%" == "None" (
 )
 
 @REM libmathdx is not available for Windows on Arm
-@REM See: https://github.com/NVIDIA/warp/blob/v1.18.0/docs/user_guide/installation.rst#experimental-windows-on-arm-builds
+@REM See: https://github.com/NVIDIA/warp/blob/v1.19.0/docs/user_guide/installation.rst#windows-on-arm
 if "%target_platform%" == "win-arm64" (
     set LIBMATHDX_HOME=
     set "ARGS=%ARGS% --no-use-libmathdx"
