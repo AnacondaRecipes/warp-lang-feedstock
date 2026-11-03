@@ -1,5 +1,5 @@
-{% set version = "1.18.0" %}
-{% set sha256 = "a0491eb50e620b721627fd1c50e89692af96be0fb34cf30737e6bfca5de924c6" %}
+{% set version = "1.19.0" %}
+{% set sha256 = "84b6b69498db04bc9fb46859827a34d16764a06df4ae5195674afebefb419788" %}
 
 package:
   name: warp-lang
@@ -14,9 +14,19 @@ source:
     - patches/0001-glibc-compat.patch
     # Drop when upstream provides a proper solution for dynamically linking libstdc++ and libgcc.
     - patches/0002-link-libstdcxx-libgcc-dynamically.patch  # [linux]
+    # Tests only: 1.19.0 sparse capture tests allocate inside CUDA graph capture but are
+    # registered on all devices, so they fail instead of skipping where memory pools are
+    # unsupported (e.g. native Windows TCC devices). Gate them on capture allocation support.
+    # Drop when fixed upstream.
+    - patches/0003-gate-sparse-capture-tests-on-allocation-support.patch
+    # Tests only: same issue for the FSAI conditional-graph solve tests.
+    # Drop when fixed upstream.
+    - patches/0004-gate-fsai-graph-capture-tests-on-allocation-support.patch
 
 build:
   number: 0
+  # Python 3.10 is deprecated upstream in 1.19.0 (runtime FutureWarning, build-time
+  # DeprecationWarning) and will be dropped in 1.20. Keep building it until then.
   skip: true  # [py<310]
   string: cpu_py{{ python | replace('.', '') }}h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}  # [cuda_compiler_version == "None"]
   string: cuda{{ cuda_compiler_version | replace('.', '') }}_py{{ python | replace('.', '') }}h{{ PKG_HASH }}_{{ PKG_BUILDNUM }}  # [cuda_compiler_version != "None"]
@@ -47,6 +57,9 @@ requirements:
     - pip
     - python
     - wheel
+    # Mirrors pyproject.toml's build-system.requires (`build`). The recipe installs with
+    # `pip --no-build-isolation` and does not invoke `python -m build`, but keep it to stay
+    # aligned with upstream's declared build requirements.
     - python-build
   run:
     - __cuda  # [cuda_compiler_version != "None"]
@@ -62,6 +75,8 @@ requirements:
     - pytorch >=2.9.0  # [cuda_compiler_version.startswith("13")]
     # Optional dependencies of the examples (upstream `examples` extra).
     # Examples are bundled with the package under 'warp/examples' directory and unit tests import 'warp.examples'.
+    # These are constraints only (the packages are not installed), so they are not restricted to
+    # the platforms/Python versions where upstream's PyPI markers make the extras installable.
     - python-blosc >=1.11.1
     - matplotlib-base >=3.7.5
     - nlopt
@@ -76,18 +91,29 @@ test:
     - warp
   requires:
     - pip
-    - pytest
   commands:
     - pip check
-    - python -m warp.tests -s autodetect -p "test_c*.py" -p "test_m*.py" -p "test_s*.py"
+    - python -c "import warp as wp; assert wp.__version__ == '{{ version }}'"
+    # `-p/--pattern` accepts a single value (it is not an appendable argument), so combine
+    # the C/M/S groups in one glob instead of passing -p more than once.
+    - python -m warp.tests -s autodetect -p "test_[cms]*.py"
+    # Features added in 1.19.0: wp.bit_count(), FSAI, array subclass support, and
+    # APIC capture load-from-bytes. Each module needs its own invocation because `-p`
+    # accepts a single pattern.
+    - python -m warp.tests -s autodetect -p "test_bit_count.py"
+    - python -m warp.tests -s autodetect -p "test_fsai.py"
+    - python -m warp.tests -s autodetect -p "test_array_subclass.py"
+    - python -m warp.tests -s autodetect -p "test_apic_load_from_bytes.py"
     # CPU variants must not contain CUDA support (guards against CUDA auto-detection at build time)
     - python -c "import warp as wp; wp.init(); exit(wp._src.context.runtime.core.wp_is_cuda_enabled())"  # [cuda_compiler_version == "None"]
     # CUDA variants must contain CUDA support
     - python -c "import warp as wp; wp.init(); exit(not wp._src.context.runtime.core.wp_is_cuda_enabled())"  # [cuda_compiler_version != "None"]
     # warp-clang (CPU JIT) must load
     - python -c "import warp as wp; wp.init(); assert wp.is_cpu_available()"
-    # libmathdx is not available for win-arm64
+    # libmathdx must be enabled where it is available
     - python -c "import warp as wp; wp.init(); exit(not wp._src.context.runtime.core.wp_is_mathdx_enabled())"  # [(linux or (win and x86_64)) and cuda_compiler_version != "None"]
+    # ... and absent on win-arm64, where upstream provides no libmathdx (built with --no-use-libmathdx)
+    - python -c "import warp as wp; wp.init(); exit(wp._src.context.runtime.core.wp_is_mathdx_enabled())"  # [win and arm64]
 
 about:
   home: https://github.com/NVIDIA/warp
@@ -125,8 +151,10 @@ about:
     - licenses/llvm-LICENSE.txt
     # Triangle intersection code, warp/native/intersect_tri.h (MIT)
     - licenses/moller-LICENSE.txt
-    # warp/native/nanovdb/ headers (upstream file contains NVIDIA proprietary text; headers are Apache-2.0)
+    # warp/native/nanovdb/ headers (Apache-2.0)
     - licenses/nanovdb-LICENSE.txt
+    # OpenVDB code ported into warp/_src/geometry/surface_nets.py (Apache-2.0)
+    - licenses/openvdb-LICENSE.txt
     # warp/native/deterministic.cu, Barnes/Ahrens/Demmel reproducible sums (MIT)
     - licenses/reproducible_floating_sums-LICENSE.txt
     # SVD code, warp/native/svd.h (MIT)

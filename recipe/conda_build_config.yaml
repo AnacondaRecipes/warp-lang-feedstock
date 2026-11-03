@@ -1,7 +1,11 @@
-# Upstream mentions that they have started to use CUDA Toolkit 13.4 as of warp-lang v1.18.0 release.
-# Upstream also mentions CUDA 12 compatibility releases, so keep building against CUDA Toolkit 12.9.x version.
-# Ref: https://github.com/NVIDIA/warp/releases/tag/v1.18.0
+# Upstream builds the default PyPI/nightly wheels with CUDA Toolkit 13.4 as of v1.18.0,
+# and continues to publish CUDA 12 compatibility wheels (+cu12) as of v1.19.0.
+# Keep building against CUDA Toolkit 12.9.x for the CUDA 12 variants.
+# CUDA Toolkit 13.0 is an Anaconda-only variant (upstream does not build or test with it). It pins the
+# runtime nvJitLink to 13.0.x, so the generated PTX stays loadable on older CUDA 13 drivers.
+# Ref: https://github.com/NVIDIA/warp/blob/v1.19.0/docs/user_guide/installation.rst
 cuda_compiler_version:
   - None
   - 12.9                # [linux or (win and x86_64)]
+  - 13.0                # [linux or (win and x86_64)]
   - 13.4                # [linux or win]
