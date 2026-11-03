@@ -92,9 +92,13 @@ test:
     # `-p/--pattern` accepts a single value (it is not an appendable argument), so combine
     # the C/M/S groups in one glob instead of passing -p more than once.
     - python -m warp.tests -s autodetect -p "test_[cms]*.py"
-    # Features added in 1.19.0: wp.bit_count() and the FSAI preconditioner (CPU and CUDA)
+    # Features added in 1.19.0: wp.bit_count(), FSAI, array subclass support, and
+    # APIC capture load-from-bytes. Each module needs its own invocation because `-p`
+    # accepts a single pattern.
     - python -m warp.tests -s autodetect -p "test_bit_count.py"
     - python -m warp.tests -s autodetect -p "test_fsai.py"
+    - python -m warp.tests -s autodetect -p "test_array_subclass.py"
+    - python -m warp.tests -s autodetect -p "test_apic_load_from_bytes.py"
     # CPU variants must not contain CUDA support (guards against CUDA auto-detection at build time)
     - python -c "import warp as wp; wp.init(); exit(wp._src.context.runtime.core.wp_is_cuda_enabled())"  # [cuda_compiler_version == "None"]
     # CUDA variants must contain CUDA support
