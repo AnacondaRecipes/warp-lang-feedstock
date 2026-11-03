@@ -19,6 +19,9 @@ source:
     # unsupported (e.g. native Windows TCC devices). Gate them on capture allocation support.
     # Drop when fixed upstream.
     - patches/0003-gate-sparse-capture-tests-on-allocation-support.patch
+    # Tests only: same issue for the FSAI conditional-graph solve tests.
+    # Drop when fixed upstream.
+    - patches/0004-gate-fsai-graph-capture-tests-on-allocation-support.patch
 
 build:
   number: 0

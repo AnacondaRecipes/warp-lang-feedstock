@@ -1,0 +1,57 @@
+From: Onur R. Bingol <obingol@anaconda.com>
+Subject: [PATCH] Gate FSAI graph-capture solve tests on allocation support
+
+The FSAI conditional-graph tests allocate the linear-solver state inside a CUDA
+graph capture, so they need memory-pool support and fail instead of skipping on
+devices without it. Register them with the mempool-aware CUDA device getter,
+leaving the other deferred-pattern tests on all CUDA devices.
+---
+--- a/warp/tests/test_fsai.py	2026-11-02 22:49:47
++++ b/warp/tests/test_fsai.py	2026-11-02 22:49:58
+@@ -11,7 +11,12 @@
+ import warp.sparse as sp
+ from warp._src.optim import fsai as fsai_module
+ from warp.optim.linear import FSAI, cg, cr, preconditioner
+-from warp.tests.unittest_utils import add_function_test, get_cuda_test_devices, get_test_devices
++from warp.tests.unittest_utils import (
++    add_function_test,
++    get_cuda_test_devices,
++    get_cuda_test_devices_with_mempool,
++    get_test_devices,
++)
+ 
+ 
+ def _matrix(a, device, dtype=wp.float64, block=1):
+@@ -1005,17 +1010,27 @@
+         TestFSAI,
+         f"test_conditional_graph_solve_{dtype.__name__}",
+         test_conditional_graph_solve,
+-        devices=get_cuda_test_devices(),
++        devices=get_cuda_test_devices_with_mempool(),
+         dtype=dtype,
+     )
+ add_function_test(
+     TestFSAI, "test_event_only_on_stream_change", test_event_only_on_stream_change, devices=get_cuda_test_devices()
+ )
+ for dtype in (wp.float32, wp.float64):
+-    for func in (test_deferred_pattern_graph, test_deferred_conditional_graph_solve):
+-        add_function_test(
+-            TestFSAI, f"{func.__name__}_{dtype.__name__}", func, devices=get_cuda_test_devices(), dtype=dtype
+-        )
++    add_function_test(
++        TestFSAI,
++        f"test_deferred_pattern_graph_{dtype.__name__}",
++        test_deferred_pattern_graph,
++        devices=get_cuda_test_devices(),
++        dtype=dtype,
++    )
++    add_function_test(
++        TestFSAI,
++        f"test_deferred_conditional_graph_solve_{dtype.__name__}",
++        test_deferred_conditional_graph_solve,
++        devices=get_cuda_test_devices_with_mempool(),
++        dtype=dtype,
++    )
+ add_function_test(TestFSAI, "test_concurrent_streams", test_concurrent_streams, devices=get_cuda_test_devices())
+ add_function_test(
+     TestFSAI,
