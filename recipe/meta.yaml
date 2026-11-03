@@ -57,6 +57,9 @@ requirements:
     - pip
     - python
     - wheel
+    # Mirrors pyproject.toml's build-system.requires (`build`). The recipe installs with
+    # `pip --no-build-isolation` and does not invoke `python -m build`, but keep it to stay
+    # aligned with upstream's declared build requirements.
     - python-build
   run:
     - __cuda  # [cuda_compiler_version != "None"]
@@ -88,7 +91,6 @@ test:
     - warp
   requires:
     - pip
-    - pytest
   commands:
     - pip check
     - python -c "import warp as wp; assert wp.__version__ == '{{ version }}'"
